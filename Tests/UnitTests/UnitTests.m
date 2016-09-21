@@ -1,5 +1,5 @@
 //
-//  FastCoderTests.m
+//  UnitTests.m
 //
 //  Created by Nick Lockwood on 12/01/2012.
 //  Copyright (c) 2012 Charcoal Design. All rights reserved.
@@ -27,9 +27,9 @@
 {
     d = [MutableOrderedDictionary dictionary];
     d[@"0"] = @1;
+    d[@"2"] = @3;
     d[@"1"] = @2;
     d[@"3"] = @4;
-    d[@"2"] = @3;
     d[@"1"] = @7;
     [d removeObjectForKey:@"3"];
 }
@@ -38,13 +38,13 @@
 {
     NSMutableDictionary *d2 = [NSMutableDictionary dictionary];
     d2[@"0"] = @1;
+    d2[@"2"] = @3;
     d2[@"1"] = @2;
     d2[@"3"] = @4;
-    d2[@"2"] = @3;
     d2[@"1"] = @7;
     [d2 removeObjectForKey:@"3"];
     
-    XCTAssertNotEqualObjects([d2 allKeys], (@[@"0",@"1",@"2"]));
+    XCTAssertNotEqualObjects([d2 allKeys], (@[@"0",@"2",@"1"]));
     XCTAssertEqualObjects(d[@"0"], @1);
     XCTAssertEqualObjects(d[@"1"], @7);
     XCTAssertEqualObjects(d[@"2"], @3);
@@ -52,16 +52,16 @@
 
 - (void)testOrderPreserved
 {
-    XCTAssertEqualObjects([d allKeys], (@[@"0",@"1",@"2"]));
+    XCTAssertEqualObjects([d allKeys], (@[@"0",@"2",@"1"]));
     XCTAssertEqualObjects(d[0], @1);
-    XCTAssertEqualObjects(d[1], @7);
-    XCTAssertEqualObjects(d[2], @3);
+    XCTAssertEqualObjects(d[1], @3);
+    XCTAssertEqualObjects(d[2], @7);
 }
 
 - (void)testIndexOfKey
 {
-    XCTAssertEqual([d indexOfKey:@"2"], 2);
-    XCTAssertEqual([d indexOfKey:@"1"], 1);
+    XCTAssertEqual([d indexOfKey:@"2"], 1);
+    XCTAssertEqual([d indexOfKey:@"1"], 2);
 }
 
 - (void)testNSCoding
@@ -72,8 +72,30 @@
     XCTAssertEqualObjects([d class], [d2 class]);
     XCTAssertEqualObjects(d, d2);
     XCTAssertEqualObjects(d[0], @1);
-    XCTAssertEqualObjects(d[1], @7);
-    XCTAssertEqualObjects(d[2], @3);
+    XCTAssertEqualObjects(d[1], @3);
+    XCTAssertEqualObjects(d[2], @7);
+}
+
+- (void)testEmptyDictIsASingleton
+{
+    OrderedDictionary *d1 = [[OrderedDictionary alloc] init];
+    OrderedDictionary *d2 = [[OrderedDictionary alloc] init];
+    XCTAssertEqual(d1, d2);
+}
+
+- (void)testEmptyDictBehavesCorrectly
+{
+    OrderedDictionary *d1 = [[OrderedDictionary alloc] init];
+    XCTAssertEqualObjects([d1 allKeys], [[[NSDictionary alloc] init] allKeys]);
+    XCTAssertEqualObjects([d1 allValues], [[[NSDictionary alloc] init] allValues]);
+    XCTAssertEqual([d1 keyEnumerator] != nil, [[[NSDictionary alloc] init] keyEnumerator] != nil);
+    XCTAssertEqual([d1 objectEnumerator] != nil, [[[NSDictionary alloc] init] objectEnumerator] != nil);
+    
+    MutableOrderedDictionary *d2 = [d1 mutableCopy];
+    d2[@"foo"] = @"bar";
+    
+    XCTAssertEqualObjects([d2 class], [MutableOrderedDictionary class]);
+    XCTAssertEqualObjects(d2[@"foo"], @"bar");
 }
 
 static NSString *samplePlist()
@@ -84,10 +106,10 @@ static NSString *samplePlist()
     "<dict>\n"
     "\t<key>0</key>\n"
     "\t<integer>1</integer>\n"
-    "\t<key>1</key>\n"
-    "\t<integer>7</integer>\n"
     "\t<key>2</key>\n"
     "\t<integer>3</integer>\n"
+    "\t<key>1</key>\n"
+    "\t<integer>7</integer>\n"
     "</dict>\n"
     "</plist>\n";
 }
@@ -102,6 +124,30 @@ static NSString *samplePlist()
     XCTAssertEqualObjects(plist, samplePlist());
 }
 
+- (void)testWritingAllTypes
+{
+    OrderedDictionary *d1 = [OrderedDictionary dictionaryWithObjectsAndKeys:
+                             @"hello world", @"string",
+                             @5, @"integer",
+                             @5.5, @"real",
+                             @YES, @"true",
+                             @NO, @"false",
+                             [NSDate date], @"date",
+                             [@"hello world" dataUsingEncoding:NSUTF8StringEncoding], @"data",
+                             @[@"foo", @"bar"], @"array",
+                             @{@"foo": @"bar", @"baz": @"quux"}, @"dict",
+                             nil];
+    
+    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"OrderedDictionary.plist"];
+    XCTAssertTrue([d1 writeToFile:path atomically:YES]);
+    NSDictionary *d2 = [NSDictionary dictionaryWithContentsOfFile:path];
+    XCTAssertNotNil(d2);
+    for (NSString *key in d1)
+    {
+        XCTAssertEqualObjects([d1[key] description], [d2[key] description]);
+    }
+}
+
 - (void)testReading
 {
     NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"OrderedDictionary.plist"];
@@ -111,21 +157,48 @@ static NSString *samplePlist()
     
     MutableOrderedDictionary *d2 = [MutableOrderedDictionary dictionaryWithContentsOfFile:path];
     XCTAssertEqualObjects([d2 class], [MutableOrderedDictionary class]);
-    XCTAssertEqualObjects([d2 allKeys], (@[@"0",@"1",@"2"]));
+    XCTAssertEqualObjects([d2 allKeys], (@[@"0",@"2",@"1"]));
     XCTAssertEqualObjects(d, d2);
     
     d2 = [[MutableOrderedDictionary alloc] initWithContentsOfURL:[NSURL fileURLWithPath:path]];
     XCTAssertEqualObjects([d2 class], [MutableOrderedDictionary class]);
-    XCTAssertEqualObjects([d2 allKeys], (@[@"0",@"1",@"2"]));
+    XCTAssertEqualObjects([d2 allKeys], (@[@"0",@"2",@"1"]));
     XCTAssertEqualObjects(d, d2);
+}
+
+- (void)testReadingAllTypes
+{
+    NSDictionary *d1 = @{@"string": @"hello world",
+                         @"integer": @5,
+                         @"real": @5.5,
+                         @"true": @YES,
+                         @"false": @NO,
+                         @"date": [NSDate date],
+                         @"data": [@"hello world" dataUsingEncoding:NSUTF8StringEncoding],
+                         @"array": @[@"foo", @"bar"],
+                         @"dict": @{@"foo": @"bar", @"baz": @"quux"}};
+    
+    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"OrderedDictionary.plist"];
+    XCTAssertTrue([d1 writeToFile:path atomically:YES]);
+    OrderedDictionary *d2 = [OrderedDictionary dictionaryWithContentsOfFile:path];
+    XCTAssertNotNil(d2);
+    for (NSString *key in d1)
+    {
+        XCTAssertEqualObjects([d1[key] description], [d2[key] description]);
+    }
 }
 
 - (void)testDescription
 {
-    NSDictionary *d2 = [NSDictionary dictionaryWithDictionary:d];
-    XCTAssertEqualObjects([d description], [d2 description]);
-    XCTAssertEqualObjects([d descriptionWithLocale:[NSLocale currentLocale]], [d2 descriptionWithLocale:[NSLocale currentLocale]]);
-    XCTAssertEqualObjects([d descriptionWithLocale:[NSLocale currentLocale] indent:1], [d descriptionWithLocale:[NSLocale currentLocale] indent:1]);
+    OrderedDictionary *d1 = [OrderedDictionary dictionaryWithObject:@{
+        @"hello": [NSDate new],
+        @"world": @[@1, @3.5],
+        @"goodbye": @NO,
+    } forKey:@"foo"];
+    NSDictionary *d2 = [NSDictionary dictionaryWithDictionary:d1];
+    XCTAssertEqualObjects([d1 description], [d2 description]);
+    XCTAssertEqualObjects([d1 descriptionWithLocale:[NSLocale currentLocale]], [d2 descriptionWithLocale:[NSLocale currentLocale]]);
+    XCTAssertEqualObjects([d1 descriptionWithLocale:[NSLocale currentLocale] indent:1], [d2 descriptionWithLocale:[NSLocale currentLocale] indent:1]);
 }
 
 @end

@@ -1,6 +1,6 @@
 {
   "name": "OrderedDictionary",
-  "version": "1.2",
+  "version": "1.4",
   "license": {
     "type": "zlib",
     "file": "LICENCE.md"
@@ -12,12 +12,14 @@
   },
   "source": {
     "git": "https://github.com/nicklockwood/OrderedDictionary.git",
-    "tag": "1.2"
+    "tag": "1.4"
   },
   "source_files": "OrderedDictionary",
   "requires_arc": true,
   "platforms": {
     "ios": "4.3",
-    "osx": "10.6"
+    "osx": "10.6",
+    "tvos": "9.0",
+    "watchos": "2.0"
   }
 }
