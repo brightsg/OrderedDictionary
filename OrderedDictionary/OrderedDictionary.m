@@ -285,7 +285,7 @@
 - (NSString *)descriptionWithLocale:(nullable id)locale indent:(NSUInteger)level
 {
     NSMutableString *indent = [NSMutableString string];
-    for (int i = 0; i < level; i++)
+    for (NSUInteger i = 0; i < level; i++)
     {
         [indent appendString:@"    "];
     }
